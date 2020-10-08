@@ -12,7 +12,11 @@ public class Main {
         if (OSType.contains("win")) {
             System.out.println("Программа будет установлена в папку C:Games. Убедитесь что она создана.");
         } else {
-            System.out.println("Программа работает только под системой Windows. Запустите программу под Windows");
+            String otherSystem = "Программа работает только под системой Windows. Запустите программу под Windows";
+            System.out.println(otherSystem);
+            logMessages.add(otherSystem); // Запись в файл не производится т.к. не реализовано для других ОС
+            closeLog(logMessages);
+            System.exit(0); // Заверение работы программы.
         }
         ArrayList<String> paths = new ArrayList<>();    // Лист для папок
         boolean result;
@@ -33,20 +37,32 @@ public class Main {
             try {
                 File dir = new File(paths.get(i));
                 if (i == 0) {   // проверка создания директории для установки
-                    if (!dir.isDirectory() && dir.exists()) {
-                        System.out.println("Папка для установки не создана");
-                        System.out.println(("Пожалуйста создайте папку для установки C:Games"));
-                        break;
+                    if (!dir.isDirectory() && !dir.exists()) {
+                        String dirDoesntExist = "Папка для установки не создана. Пожалуйста создайте папку для установки C:Games";
+                        System.out.println(dirDoesntExist);
+                        logMessages.add(dirDoesntExist);
+                        closeLog(logMessages);
+
                     } else {
                         continue;
                     }
                 }
                 if (paths.get(i).contains(".")) {   // Для файлов используется другой метод, здесь вычленяем файлы
                     result = dir.createNewFile();
+                    logMessages.add("Результат создания " + paths.get(i) + " = " + result);
+                    if (result = false) closeLog(logMessages);
                 } else {
-                    result = dir.mkdir();
+                    if (dir.isDirectory() && dir.exists()) {
+                        logMessages.add("Директория " + paths.get(i) + " уже существует");
+                        result = true;
+                    } else {
+                        result = dir.mkdir();
+                        logMessages.add("Результат создания " + paths.get(i) + " = " + result);
+                    }
                 }
-                logMessages.add("Результат создания " + paths.get(i) + " = " + result);
+                if (!result) {
+                    closeLog(logMessages);
+                }
 
             } catch (Exception e) {
                 System.out.println(e.getMessage());
@@ -54,16 +70,9 @@ public class Main {
             }
 
         }
-        StringBuilder builder = new StringBuilder();
-        for (String k : logMessages) {
-            System.out.println(k);
-            builder.append(k + "\n");
-        }
+        // closeLog(logMessages); изменено - здесь не нужно
 
-        FileWriter temp = new FileWriter("C://Games//temp//temp.txt");
-        temp.write(builder.toString());
-        temp.close();
-        System.out.println("\nЛог файл доступен здесь: C:/Games/temp/temp.txt");
+
         // задание 2
         GameProgress game1 = new GameProgress(100, 8, 80, 843);
         GameProgress game2 = new GameProgress(89, 7, 80, 967);
@@ -71,14 +80,32 @@ public class Main {
         saveGame(paths.get(3) + "game1.dat", game1); // Сохранение игры1
         saveGame(paths.get(3) + "game2.dat", game2); // Сохранение игры2
         saveGame(paths.get(3) + "game3.dat", game3); // Сохранение игры3
-        zipFile("C://Games//savegames//game.zip", new String[]{paths.get(3) + "game1.dat", paths.get(3) + "game2.dat", paths.get(3) + "game3.dat"});
+        result = zipFile("C://Games//savegames//game.zip", new String[]{paths.get(3) + "game1.dat", paths.get(3) + "game2.dat", paths.get(3) + "game3.dat"});
+        logMessages.add("Архивация выполненна с результатом " + result);
         File file1 = new File(paths.get(3) + "game1.dat");
         File file2 = new File(paths.get(3) + "game2.dat");
         File file3 = new File(paths.get(3) + "game3.dat");
-        file1.delete();
-        file2.delete();
-        file3.delete();
+        logMessages.add("Результат удаления файла " + paths.get(3) + "game1.dat - " + file1.delete());
+        logMessages.add("Результат удаления файла " + paths.get(3) + "game2.dat - " + file2.delete());
+        logMessages.add("Результат удаления файла " + paths.get(3) + "game3.dat - " + file3.delete());
+        closeLog(logMessages);
+    }
 
+    public static void closeLog(ArrayList<String> logMessages) {
+        StringBuilder builder = new StringBuilder();
+        for (String k : logMessages) {
+            System.out.println(k);
+            builder.append(k).append("\n");
+        }
+        try {
+            FileWriter temp = new FileWriter("C://Games//temp//temp.txt");
+            temp.write(builder.toString());
+            temp.close();
+            System.out.println("\nЛог файл доступен здесь: C:/Games/temp/temp.txt");
+        } catch (IOException e) {
+            System.out.println(e.getMessage() + " ЛОГ ФАЙЛ НЕ СОЗДАН");
+        }
+        System.exit(0);
     }
 
     public static void saveGame(String path, GameProgress game) throws IOException {
@@ -88,24 +115,26 @@ public class Main {
         }
     }
 
-    public static void zipFile(String zipPath, String[] filesPaths) throws IOException {
-        ZipOutputStream zOut = new ZipOutputStream(new FileOutputStream(zipPath));
-        for(int i = 0; i < filesPaths.length; i++) {
-            try (FileInputStream fis = new FileInputStream(filesPaths[i])) {
-                int index = filesPaths[i].lastIndexOf("/");
-                String zipFileName = filesPaths[i].substring(index + 1);
-                String entryName = zipFileName;
-                ZipEntry entry1 = new ZipEntry(entryName);
-                zOut.putNextEntry(entry1);
-                byte[] buffer = new byte[fis.available()];
-                fis.read(buffer);
-                zOut.write(buffer);
-                zOut.closeEntry();
-            } catch (IOException e) {
-                e.printStackTrace();
+    public static boolean zipFile(String zipPath, String[] filesPaths) throws IOException {
+        boolean result = true;
+        try (ZipOutputStream zOut = new ZipOutputStream(new FileOutputStream(zipPath))) {
+            for (String filesPath : filesPaths) {
+                try (FileInputStream fis = new FileInputStream(filesPath)) {
+                    int index = filesPath.lastIndexOf("/");
+                    String entryName = filesPath.substring(index + 1);
+                    ZipEntry entry1 = new ZipEntry(entryName);
+                    zOut.putNextEntry(entry1);
+                    byte[] buffer = new byte[fis.available()];
+                    fis.read(buffer);
+                    zOut.write(buffer);
+                    zOut.closeEntry();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    result = false;
+                }
             }
         }
-        zOut.close();
+        return result;
     }
 }
 
