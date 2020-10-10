@@ -50,7 +50,7 @@ public class Main {
                 if (paths.get(i).contains(".")) {   // Для файлов используется другой метод, здесь вычленяем файлы
                     result = dir.createNewFile();
                     logMessages.add("Результат создания " + paths.get(i) + " = " + result);
-                    if (result = false) closeLog(logMessages);
+                    if (!result) closeLog(logMessages);
                 } else {
                     if (dir.isDirectory() && dir.exists()) {
                         logMessages.add("Директория " + paths.get(i) + " уже существует");
